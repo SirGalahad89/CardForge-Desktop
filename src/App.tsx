@@ -1,4 +1,5 @@
-import { ChangeEvent, PointerEvent, useMemo, useRef, useState } from 'react';
+import { useState } from "react";
+import type { ChangeEvent, PointerEvent } from "react";
 
 type TextItem = { id: string; type: 'text'; x: number; y: number; text: string; size: number; color: string };
 type RectItem = { id: string; type: 'rect'; x: number; y: number; w: number; h: number; fill: string; stroke: string };
