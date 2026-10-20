@@ -84,3 +84,15 @@
 .canvas-scroll{overscroll-behavior:contain;cursor:default}
 .canvas-scroll:active{cursor:default}
 .zoom-controls span{min-width:38px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* Vorlagenbearbeitung und Versionierung */
+.template-edit{width:30px;border:1px solid #dce4da;border-radius:7px;background:#f8faf7;color:#315a45;font-size:15px}
+.template-edit-label{font-size:10px;font-weight:700;color:#315a45;background:#eaf3eb;border:1px solid #cfe0d1;border-radius:6px;padding:7px 8px;white-space:nowrap}
+.canvas-tools button.primary{border:1px solid #315a45;background:#315a45;color:#fff;border-radius:6px;padding:7px 9px;font-size:10px;font-weight:700;white-space:nowrap}
+.canvas-tools>button:not(.canvas-toggle):not(.primary){border:1px solid #dce2da;background:#fff;border-radius:6px;padding:7px 9px;color:#536157;font-size:10px;font-weight:600;white-space:nowrap}
+
+/* Version 0.11: right-button drag panning for the zoomed design area */
+.canvas-scroll{align-items:flex-start;justify-content:flex-start;touch-action:pan-x pan-y;user-select:none}
+.artboard-wrap{margin:auto}
+.canvas-scroll.is-panning{cursor:grabbing;scroll-behavior:auto}
+.canvas-scroll.is-panning *{cursor:grabbing!important;user-select:none!important}
