@@ -159,8 +159,8 @@ export default function App() {
   const moveDrag = (e: PointerEvent<SVGSVGElement>) => { if (!drag.current) return; const point = e.currentTarget.createSVGPoint(); point.x = e.clientX; point.y = e.clientY; const local = point.matrixTransform(e.currentTarget.getScreenCTM()!.inverse()); const d = drag.current; patch(d.id, { x: Math.max(0, Math.min(design.width, d.itemX + local.x - d.startX)), y: Math.max(0, Math.min(design.height, d.itemY + local.y - d.startY)) }); };
   const removeSelected = () => { updateDesign(d => ({ ...d, items: d.items.filter(i => i.id !== selected) })); setSelected(''); setStatus('Element gelöscht'); };
   const ordered = useMemo(() => design.items, [design.items]);
-  const selectedW = selectedItem && 'w' in selectedItem ? selectedItem.w : selectedItem?.type === 'text' ? selectedItem.w : 0;
-  const selectedH = selectedItem && 'h' in selectedItem ? selectedItem.h : selectedItem?.type === 'text' ? selectedItem.h : 0;
+  const selectedW = selectedItem?.w ?? 0;
+  const selectedH = selectedItem?.h ?? 0;
   const categories = workspace.categories?.length ? workspace.categories : defaultCategories;
   const subcategories = workspace.subcategories ?? defaultSubcategories;
   const addCategory = () => { const name = newCategoryName.trim(); if (!name) return; if (categories.some(c => c.toLocaleLowerCase('de') === name.toLocaleLowerCase('de'))) { setStatus('Diese Kategorie gibt es bereits.'); return; } updateWorkspace(w => ({ ...w, categories: [...(w.categories?.length ? w.categories : defaultCategories), name] })); setNewCategoryName(''); setStatus(`Kategorie „${name}“ hinzugefügt`); };
