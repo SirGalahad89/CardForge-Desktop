@@ -96,3 +96,8 @@
 .artboard-wrap{margin:auto}
 .canvas-scroll.is-panning{cursor:grabbing;scroll-behavior:auto}
 .canvas-scroll.is-panning *{cursor:grabbing!important;user-select:none!important}
+
+/* CardForge 0.12: zusätzliche Editor-Werkzeuge */
+.canvas-toolbar{height:auto;min-height:51px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
+.canvas-tools{flex-wrap:wrap;justify-content:flex-end;row-gap:6px}
+.canvas-toggle:disabled{opacity:.42;cursor:not-allowed}
