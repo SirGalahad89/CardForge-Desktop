@@ -1,0 +1,158 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, PointerEvent } from 'react';
+
+type TextItem = { id: string; type: 'text'; x: number; y: number; text: string; size: number; color: string };
+type RectItem = { id: string; type: 'rect'; x: number; y: number; w: number; h: number; fill: string; stroke: string };
+type ImageItem = { id: string; type: 'image'; x: number; y: number; w: number; h: number; href: string; name: string };
+type Item = TextItem | RectItem | ImageItem;
+type Design = { version: 1; name: string; width: number; height: number; background: string; items: Item[] };
+type SavedTemplate = { id: string; name: string; design: Design; updatedAt: number };
+type SavedCard = { id: string; design: Design; setName: string; updatedAt: number; layoutLocked?: boolean; templateId?: string };
+type Workspace = { id: string; name: string; cards: SavedCard[]; activeCardId: string; templates: SavedTemplate[]; updatedAt: number };
+type Store = { version: 2; activeWorkspaceId: string; workspaces: Workspace[] };
+const STORE_KEY = 'cardforge-workspaces-v2';
+const LEGACY_KEY = 'cardforge-project-store-v1';
+const sizePresets = [
+  { name: 'Poker', width: 63, height: 88 },
+  { name: 'Tarot', width: 70, height: 120 },
+  { name: 'Mini', width: 44, height: 67 },
+  { name: 'Quadratisch', width: 80, height: 80 },
+];
+const uid = () => Math.random().toString(36).slice(2, 10);
+const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const blankDesign = (name: string, width = 63, height = 88): Design => ({ version: 1, name, width, height, background: '#f8f4e9', items: [] });
+const sampleDesign = (name: string, width = 63, height = 88): Design => ({
+  ...blankDesign(name, width, height),
+  items: [
+    { id: uid(), type: 'rect', x: 4, y: 4, w: width - 8, h: height - 8, fill: 'none', stroke: '#4d5c48' },
+    { id: uid(), type: 'text', x: width / 2, y: 15, text: 'KARTENTITEL', size: 4.2, color: '#263326' },
+    { id: uid(), type: 'text', x: width / 2, y: height - 12, text: 'Beschreibung deiner Karte', size: 2.8, color: '#263326' },
+  ],
+});
+function newWorkspace(name: string): Workspace {
+  const design = sampleDesign('Karte 1');
+  const card: SavedCard = { id: uid(), design, setName: 'Unsortiert', updatedAt: Date.now() };
+  return { id: uid(), name, cards: [card], activeCardId: card.id, templates: [], updatedAt: Date.now() };
+}
+function normalizeStore(): Store {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Store;
+      if (parsed.version === 2 && Array.isArray(parsed.workspaces) && parsed.workspaces.length) {
+        const workspaces = parsed.workspaces.map(w => ({ ...w, cards: Array.isArray(w.cards) && w.cards.length ? w.cards : [{ id: uid(), design: blankDesign('Karte 1'), setName: 'Unsortiert', updatedAt: Date.now() }], templates: Array.isArray(w.templates) ? w.templates : [] }));
+        const activeWorkspaceId = workspaces.some(w => w.id === parsed.activeWorkspaceId) ? parsed.activeWorkspaceId : workspaces[0].id;
+        return { version: 2, activeWorkspaceId, workspaces };
+      }
+    }
+    const legacyRaw = localStorage.getItem(LEGACY_KEY);
+    if (legacyRaw) {
+      const old = JSON.parse(legacyRaw) as { activeId?: string; projects?: { id: string; project: Design }[] };
+      if (Array.isArray(old.projects) && old.projects.length) {
+        const workspaces = old.projects.map((record, index) => {
+          const design = { ...record.project, name: 'Karte 1' };
+          const card = { id: uid(), design, setName: 'Unsortiert', updatedAt: Date.now() };
+          return { id: record.id || uid(), name: record.project.name || `Projekt ${index + 1}`, cards: [card], activeCardId: card.id, templates: [], updatedAt: Date.now() };
+        });
+        const activeWorkspaceId = workspaces.some(w => w.id === old.activeId) ? old.activeId! : workspaces[0].id;
+        return { version: 2, activeWorkspaceId, workspaces };
+      }
+    }
+  } catch { /* Bei ungültigen lokalen Daten mit einem neuen Projekt starten. */ }
+  const first = newWorkspace('Mein Kartenspiel');
+  return { version: 2, activeWorkspaceId: first.id, workspaces: [first] };
+}
+function safeName(name: string) { return name.trim().replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '') || 'kartenprojekt'; }
+function download(blob: Blob, name: string) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); }
+
+export default function App() {
+  const [store, setStore] = useState<Store>(normalizeStore);
+  const workspace = store.workspaces.find(w => w.id === store.activeWorkspaceId) ?? store.workspaces[0] ?? newWorkspace('Mein Kartenspiel');
+  const card = workspace.cards.find(c => c.id === workspace.activeCardId) ?? workspace.cards[0] ?? { id: 'fallback-card', design: blankDesign('Karte 1'), setName: 'Unsortiert', updatedAt: 0 };
+  const design = card.design;
+  const [selected, setSelected] = useState<string>('');
+  const [zoom, setZoom] = useState(4.3);
+  const [status, setStatus] = useState('Bereit');
+  const [newCardSource, setNewCardSource] = useState('blank');
+  const [newCardName, setNewCardName] = useState('Neue Karte');
+  const [newTemplateName, setNewTemplateName] = useState('Meine Vorlage');
+  const [showNewCard, setShowNewCard] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [newCardSet, setNewCardSet] = useState('Unsortiert');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const projectRef = useRef<HTMLInputElement>(null);
+  const drag = useRef<{ id: string; startX: number; startY: number; itemX: number; itemY: number } | null>(null);
+  const selectedItem = design.items.find(item => item.id === selected);
+  const layoutLocked = Boolean(card.layoutLocked);
+  const pxW = design.width * zoom;
+  const pxH = design.height * zoom;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+      catch { setStatus('Automatisches Speichern nicht möglich – bitte Projektdatei exportieren.'); }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [store]);
+
+  const updateWorkspace = (update: (current: Workspace) => Workspace) => {
+    setStore(current => ({ ...current, workspaces: current.workspaces.map(w => w.id === current.activeWorkspaceId ? { ...update(w), updatedAt: Date.now() } : w) }));
+  };
+  const updateDesign = (update: (current: Design) => Design) => updateWorkspace(w => ({ ...w, cards: w.cards.map(c => c.id === w.activeCardId ? { ...c, design: update(c.design), updatedAt: Date.now() } : c) }));
+  const patch = (id: string, changes: Partial<Item>) => updateDesign(d => ({ ...d, items: d.items.map(i => i.id === id ? ({ ...i, ...changes } as Item) : i) }));
+  const addText = () => { const id = uid(); updateDesign(d => ({ ...d, items: [...d.items, { id, type: 'text', x: d.width / 2, y: d.height / 2, text: 'Neuer Text', size: 4, color: '#222222' }] })); setSelected(id); setStatus('Text hinzugefügt'); };
+  const addFrame = () => { const id = uid(); updateDesign(d => ({ ...d, items: [...d.items, { id, type: 'rect', x: 8, y: 22, w: d.width - 16, h: d.height - 30, fill: 'none', stroke: '#4d5c48' }] })); setSelected(id); };
+  const addImage = (e: ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { const id = uid(); updateDesign(d => ({ ...d, items: [...d.items, { id, type: 'image', x: d.width * .2, y: d.height * .27, w: d.width * .6, h: d.height * .35, href: String(reader.result), name: file.name }] })); setSelected(id); setStatus(`Bild hinzugefügt: ${file.name}`); }; reader.readAsDataURL(file); e.target.value = ''; };
+  const createWorkspace = () => {
+    const name = `Neues Projekt ${store.workspaces.length + 1}`;
+    const next = newWorkspace(name);
+    setStore(s => ({ ...s, activeWorkspaceId: next.id, workspaces: [...s.workspaces, next] }));
+    setSelected(next.cards[0].design.items[1]?.id ?? ''); setStatus(`Projekt „${name}“ erstellt`);
+  };
+  const renameWorkspace = (name: string) => updateWorkspace(w => ({ ...w, name }));
+  const switchWorkspace = (id: string) => { const next = store.workspaces.find(w => w.id === id); if (!next) return; setStore(s => ({ ...s, activeWorkspaceId: id })); setSelected(''); setStatus(`Projekt „${next.name}“ geöffnet`); };
+  const deleteWorkspace = () => {
+    if (!window.confirm(`Projekt „${workspace.name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) return;
+    if (store.workspaces.length === 1) { const replacement = newWorkspace('Mein Kartenspiel'); setStore({ version: 2, activeWorkspaceId: replacement.id, workspaces: [replacement] }); setSelected(''); return; }
+    const remaining = store.workspaces.filter(w => w.id !== workspace.id); setStore({ version: 2, activeWorkspaceId: remaining[0].id, workspaces: remaining }); setSelected('');
+  };
+  const createCard = () => {
+    let nextDesign: Design;
+    if (newCardSource === 'blank') nextDesign = blankDesign(newCardName);
+    else if (newCardSource.startsWith('preset:')) { const preset = sizePresets.find(p => `preset:${p.name}` === newCardSource)!; nextDesign = blankDesign(newCardName, preset.width, preset.height); }
+    else { const template = workspace.templates.find(t => `saved:${t.id}` === newCardSource); nextDesign = template ? clone(template.design) : sampleDesign(newCardName); nextDesign.name = newCardName; nextDesign.items = nextDesign.items.map(item => ({ ...item, id: uid() })); }
+    const savedTemplate = workspace.templates.find(t => `saved:${t.id}` === newCardSource);
+    const nextCard: SavedCard = { id: uid(), design: nextDesign, setName: newCardSet.trim() || 'Unsortiert', updatedAt: Date.now(), ...(savedTemplate ? { layoutLocked: true, templateId: savedTemplate.id } : {}) };
+    updateWorkspace(w => ({ ...w, cards: [...w.cards, nextCard], activeCardId: nextCard.id }));
+    setSelected(''); setShowNewCard(false); setStatus(`Karte „${newCardName}“ angelegt`);
+  };
+  const switchCard = (id: string) => { updateWorkspace(w => ({ ...w, activeCardId: id })); const next = workspace.cards.find(c => c.id === id); setSelected(next?.design.items[0]?.id ?? ''); setStatus(next ? `Karte „${next.design.name}“ geöffnet` : 'Karte geöffnet'); };
+  const renameCard = (name: string) => updateDesign(d => ({ ...d, name }));
+  const duplicateCard = () => { const copy = clone(design); copy.name = `${design.name} (Kopie)`; copy.items = copy.items.map(item => ({ ...item, id: uid() })); const next: SavedCard = { id: uid(), design: copy, setName: card.setName, updatedAt: Date.now(), layoutLocked: card.layoutLocked, templateId: card.templateId }; updateWorkspace(w => ({ ...w, cards: [...w.cards, next], activeCardId: next.id })); setSelected(''); setStatus(`Karte „${copy.name}“ dupliziert`); };
+  const deleteCard = () => { if (workspace.cards.length === 1) { if (!window.confirm('Diese letzte Karte durch eine leere Karte ersetzen?')) return; const blank = { id: uid(), design: blankDesign('Karte 1'), setName: 'Unsortiert', updatedAt: Date.now() }; updateWorkspace(w => ({ ...w, cards: [blank], activeCardId: blank.id })); setSelected(''); return; } if (!window.confirm(`Karte „${design.name}“ löschen?`)) return; updateWorkspace(w => { const cards = w.cards.filter(c => c.id !== w.activeCardId); return { ...w, cards, activeCardId: cards[0].id }; }); setSelected(''); };
+  const saveTemplate = () => { const name = newTemplateName.trim(); if (!name) { setStatus('Bitte einen Vorlagennamen eingeben.'); return; } const saved = { id: uid(), name, design: clone(design), updatedAt: Date.now() }; updateWorkspace(w => ({ ...w, templates: [...w.templates, saved] })); setShowSaveTemplate(false); setStatus(`Vorlage „${name}“ gespeichert`); };
+  const useTemplateNow = (id: string) => { const t = workspace.templates.find(item => item.id === id); if (!t) return; const copy = clone(t.design); copy.name = `Karte aus ${t.name}`; copy.items = copy.items.map(item => ({ ...item, id: uid() })); const next: SavedCard = { id: uid(), design: copy, setName: 'Unsortiert', updatedAt: Date.now(), layoutLocked: true, templateId: t.id }; updateWorkspace(w => ({ ...w, cards: [...w.cards, next], activeCardId: next.id })); setSelected(''); setStatus(`Neue Karte aus Vorlage „${t.name}“ erstellt`); };
+  const deleteTemplate = (id: string) => { const t = workspace.templates.find(item => item.id === id); if (!t || !window.confirm(`Vorlage „${t.name}“ löschen? Bereits erstellte Karten bleiben erhalten.`)) return; updateWorkspace(w => ({ ...w, templates: w.templates.filter(item => item.id !== id) })); };
+  const saveProject = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); setStatus(`Projekt „${workspace.name}“ gespeichert`); } catch { setStatus('Speichern fehlgeschlagen. Bitte eine Kartendatei exportieren.'); } };
+  const exportProjectFile = () => { download(new Blob([JSON.stringify(workspace, null, 2)], { type: 'application/json' }), `${safeName(workspace.name)}.cardforge.json`); setStatus('Projektdatei als Sicherung exportiert'); };
+  const loadProject = (e: ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const parsed = JSON.parse(String(reader.result)) as Workspace; if (!parsed || typeof parsed.name !== 'string') throw new Error('Ungültige Datei'); let imported: Workspace; if (Array.isArray(parsed.cards) && parsed.cards.length) imported = { ...parsed, id: uid(), activeCardId: parsed.cards.some(c => c.id === parsed.activeCardId) ? parsed.activeCardId : parsed.cards[0].id, templates: Array.isArray(parsed.templates) ? parsed.templates : [] }; else { const old = parsed as unknown as Design; if (!Array.isArray(old.items) || typeof old.width !== 'number') throw new Error('Ungültiges Format'); const c = { id: uid(), design: old, setName: 'Unsortiert', updatedAt: Date.now() }; imported = { id: uid(), name: old.name || 'Importiertes Projekt', cards: [c], activeCardId: c.id, templates: [], updatedAt: Date.now() }; } setStore(s => ({ ...s, activeWorkspaceId: imported.id, workspaces: [...s.workspaces, imported] })); setSelected(''); setStatus(`Projekt „${imported.name}“ importiert`); } catch { setStatus('Datei konnte nicht als CardForge-Projekt geöffnet werden'); } }; reader.readAsText(file); e.target.value = ''; };
+  const exportSvg = () => { const svg = document.getElementById('card-artboard'); if (!svg) return; const copy = svg.cloneNode(true) as SVGSVGElement; copy.removeAttribute('style'); copy.querySelectorAll('[data-editor-ui]').forEach(n => n.remove()); download(new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml;charset=utf-8' }), `${safeName(design.name)}.svg`); setStatus('SVG exportiert'); };
+  const exportPng = () => { const svg = document.getElementById('card-artboard'); if (!svg) return; const copy = svg.cloneNode(true) as SVGSVGElement; copy.querySelectorAll('[data-editor-ui]').forEach(n => n.remove()); copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); copy.setAttribute('width', String(design.width * 12)); copy.setAttribute('height', String(design.height * 12)); const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml;charset=utf-8' })); const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); canvas.width = design.width * 12; canvas.height = design.height * 12; const ctx = canvas.getContext('2d'); ctx?.drawImage(img, 0, 0, canvas.width, canvas.height); canvas.toBlob(blob => { if (blob) download(blob, `${safeName(design.name)}.png`); URL.revokeObjectURL(url); setStatus('PNG exportiert'); }); }; img.onerror = () => { URL.revokeObjectURL(url); setStatus('PNG-Export fehlgeschlagen'); }; img.src = url; };
+  const beginDrag = (e: PointerEvent<SVGGElement>, item: Item) => { e.stopPropagation(); setSelected(item.id); if (layoutLocked) return; const point = e.currentTarget.ownerSVGElement!.createSVGPoint(); point.x = e.clientX; point.y = e.clientY; const local = point.matrixTransform(e.currentTarget.ownerSVGElement!.getScreenCTM()!.inverse()); drag.current = { id: item.id, startX: local.x, startY: local.y, itemX: item.x, itemY: item.y }; e.currentTarget.setPointerCapture(e.pointerId); };
+  const moveDrag = (e: PointerEvent<SVGSVGElement>) => { if (!drag.current) return; const point = e.currentTarget.createSVGPoint(); point.x = e.clientX; point.y = e.clientY; const local = point.matrixTransform(e.currentTarget.getScreenCTM()!.inverse()); const d = drag.current; patch(d.id, { x: Math.max(0, Math.min(design.width, d.itemX + local.x - d.startX)), y: Math.max(0, Math.min(design.height, d.itemY + local.y - d.startY)) }); };
+  const removeSelected = () => { updateDesign(d => ({ ...d, items: d.items.filter(i => i.id !== selected) })); setSelected(''); setStatus('Element gelöscht'); };
+  const ordered = useMemo(() => design.items, [design.items]);
+  const sets = Array.from(new Set(workspace.cards.map(c => c.setName || 'Unsortiert')));
+  return <div className="app-shell">
+    <header className="topbar"><div className="brand"><div className="brand-mark">CF</div><div><strong>CardForge</strong><small>DESKTOP · KARTENSTUDIO</small></div></div><div className="project-name"><span>Projektname</span><input value={workspace.name} onChange={e => renameWorkspace(e.target.value)} aria-label="Projektname" /></div><div className="top-actions"><button onClick={() => projectRef.current?.click()}>Importieren</button><button onClick={exportProjectFile}>Datei sichern</button><button onClick={saveProject} className="primary">Speichern</button><button onClick={exportPng}>PNG</button><button onClick={exportSvg}>SVG</button><input ref={projectRef} type="file" accept=".json,.cardforge.json,application/json" hidden onChange={loadProject}/></div></header>
+    <div className="workspace"><aside className="left-panel"><div className="panel-heading">PROJEKTVERWALTUNG</div><label className="field-label">Projekt auswählen<select value={workspace.id} onChange={e => switchWorkspace(e.target.value)}>{store.workspaces.map(w => <option key={w.id} value={w.id}>{w.name || 'Unbenanntes Projekt'}</option>)}</select></label><div className="project-actions"><button onClick={createWorkspace}>＋ Neues Projekt</button><button onClick={deleteWorkspace}>Projekt löschen</button></div><p className="autosave-note">Projektname oben ändern. Änderungen werden automatisch lokal gespeichert.</p>
+    <div className="panel-heading section-heading">KARTEN IN DIESEM PROJEKT</div><button className="tool-button" onClick={() => { setNewCardName(`Karte ${workspace.cards.length + 1}`); setNewCardSource('blank'); setNewCardSet('Unsortiert'); setShowNewCard(true); }}><span className="tool-icon">＋</span><span><b>Neue Karte anlegen</b><small>Leere Karte oder Vorlage wählen</small></span><strong>＋</strong></button><label className="field-label">Karte auswählen<select value={card.id} onChange={e => switchCard(e.target.value)}>{workspace.cards.map(c => <option key={c.id} value={c.id}>{c.design.name || 'Unbenannte Karte'}{c.setName && c.setName !== 'Unsortiert' ? ` · ${c.setName}` : ''}</option>)}</select></label><label className="field-label">Kartenname<input value={design.name} onChange={e => renameCard(e.target.value)} /></label><div className="project-actions"><button onClick={duplicateCard}>Karte duplizieren</button><button onClick={deleteCard}>Karte löschen</button></div><label className="field-label">Set / Gruppe<input value={card.setName || 'Unsortiert'} placeholder="z. B. Basis-Set" onChange={e => updateWorkspace(w => ({ ...w, cards: w.cards.map(c => c.id === w.activeCardId ? { ...c, setName: e.target.value, updatedAt: Date.now() } : c) }))} /></label>
+    {layoutLocked && <p className="autosave-note">Diese Karte basiert auf einer Vorlage. Elemente und Gestaltung sind fixiert; Textinhalte bleiben editierbar.</p>}<div className="panel-heading section-heading">VORLAGEN</div><button className="tool-button" onClick={() => { setNewTemplateName(`${design.name} Vorlage`); setShowSaveTemplate(true); }}><span className="tool-icon">▤</span><span><b>Aktuelle Karte als Vorlage speichern</b><small>Layout für weitere Karten wiederverwenden</small></span><strong>＋</strong></button>{workspace.templates.length === 0 ? <p className="helper-text">Noch keine eigenen Vorlagen gespeichert.</p> : workspace.templates.map(t => <div className="template-row" key={t.id}><button className="template-use" onClick={() => useTemplateNow(t.id)} title="Neue Karte aus dieser Vorlage erstellen"><b>{t.name}</b><small>Als neue Karte verwenden</small></button><button className="template-delete" onClick={() => deleteTemplate(t.id)} title="Vorlage löschen">×</button></div>)}
+    <div className="panel-heading section-heading">KARTENFORMAT</div><label className="field-label">Format auswählen<select value={sizePresets.find(p => p.width === design.width && p.height === design.height)?.name ?? 'Eigene Größe'} disabled={layoutLocked} onChange={e => { const preset = sizePresets.find(p => p.name === e.target.value); if (preset) updateDesign(d => ({ ...d, width: preset.width, height: preset.height })); }}><option>Eigene Größe</option>{sizePresets.map(p => <option key={p.name}>{p.name}</option>)}</select></label><div className="dimension-row"><label className="field-label">Breite (mm)<input type="number" min="20" max="200" value={design.width} disabled={layoutLocked} onChange={e => updateDesign(d => ({ ...d, width: Math.max(20, Number(e.target.value) || 20) }))}/></label><label className="field-label">Höhe (mm)<input type="number" min="20" max="250" value={design.height} disabled={layoutLocked} onChange={e => updateDesign(d => ({ ...d, height: Math.max(20, Number(e.target.value) || 20) }))}/></label></div><label className="field-label">Hintergrund<input type="color" value={design.background} disabled={layoutLocked} onChange={e => updateDesign(d => ({ ...d, background: e.target.value }))}/></label><div className="panel-heading section-heading">ELEMENTE HINZUFÜGEN</div><button className="tool-button" onClick={addText} disabled={layoutLocked}><span className="tool-icon">T</span><span><b>Textfeld</b><small>Überschrift oder Beschreibung</small></span><strong>＋</strong></button><button className="tool-button" onClick={() => fileRef.current?.click()} disabled={layoutLocked}><span className="tool-icon">▧</span><span><b>Bild importieren</b><small>PNG, JPG, WebP und mehr</small></span><strong>＋</strong></button><input ref={fileRef} type="file" accept="image/*" hidden onChange={addImage}/><button className="tool-button" onClick={addFrame} disabled={layoutLocked}><span className="tool-icon">▱</span><span><b>Rahmen</b><small>Rechteckiger Kartenbereich</small></span><strong>＋</strong></button><div className="panel-foot">OFFLINE-FIRST <span>●</span> DATEN BLEIBEN LOKAL</div></aside>
+    <main className="canvas-area"><div className="canvas-toolbar"><div><b>{design.name}</b><span className="crumb"> / {workspace.name}</span>{layoutLocked && <span className="lock-label">Vorlagenlayout gesperrt · Textinhalte bleiben bearbeitbar</span>}</div><div className="zoom-controls"><button onClick={() => setZoom(z => Math.max(2, z - .4))} aria-label="Verkleinern">−</button><span>{Math.round(zoom / 4.3 * 100)}%</span><button onClick={() => setZoom(z => Math.min(8, z + .4))} aria-label="Vergrößern">＋</button></div></div><div className="canvas-scroll"><div className="artboard-wrap" style={{ width: pxW + 32, height: pxH + 32 }}><svg id="card-artboard" width={pxW} height={pxH} viewBox={`0 0 ${design.width} ${design.height}`} onPointerMove={moveDrag} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onClick={() => setSelected('')} role="img" aria-label="Kartenarbeitsfläche"><rect width={design.width} height={design.height} fill={design.background}/>{ordered.map(item => <g key={item.id} onPointerDown={e => beginDrag(e, item)} className={`canvas-item ${selected === item.id ? 'is-selected' : ''}`} style={{ cursor: 'move' }}>{item.type === 'rect' && <rect x={item.x} y={item.y} width={item.w} height={item.h} fill={item.fill} stroke={item.stroke} strokeWidth={.45} />}{item.type === 'text' && <text x={item.x} y={item.y} fill={item.color} fontSize={item.size} textAnchor="middle" fontFamily="Georgia, serif" fontWeight={item.size > 4 ? 'bold' : 'normal'}>{item.text}</text>}{item.type === 'image' && <image x={item.x} y={item.y} width={item.w} height={item.h} href={item.href} preserveAspectRatio="xMidYMid meet"/>}{selected === item.id && <rect data-editor-ui="true" x={item.x - (item.type === 'rect' ? .4 : 1)} y={item.y - (item.type === 'text' ? item.size : 1)} width={item.type === 'rect' ? item.w + .8 : item.type === 'image' ? item.w + 2 : Math.max(item.text.length * item.size * .55, 8)} height={item.type === 'rect' ? item.h + .8 : item.type === 'image' ? item.h + 2 : item.size * 1.7} fill="none" stroke="#2777e8" strokeWidth={.35} strokeDasharray="1 1" pointerEvents="none"/>}</g>)}</svg></div></div><div className="canvas-status"><span><i className="green-dot"/> {status}</span><span>{design.width} × {design.height} mm · {design.items.length} Elemente · {workspace.cards.length} Karten</span></div></main>
+    <aside className="right-panel"><div className="panel-heading">EBENEN</div><div className="layer-list">{[...design.items].reverse().map(item => <button key={item.id} className={`layer-row ${selected === item.id ? 'active' : ''}`} onClick={() => setSelected(item.id)}><span className="layer-icon">{item.type === 'text' ? 'T' : item.type === 'image' ? '▧' : '▱'}</span><span className="layer-name">{item.type === 'text' ? item.text : item.type === 'image' ? item.name : 'Rahmen'}</span><span className="layer-type">{item.type === 'text' ? 'Text' : item.type === 'image' ? 'Bild' : 'Form'}</span></button>)}</div><div className="inspector"><div className="panel-heading">EIGENSCHAFTEN</div>{selectedItem ? <><div className="selected-type">{selectedItem.type === 'text' ? 'TEXT-ELEMENT' : selectedItem.type === 'image' ? 'BILD-ELEMENT' : 'FORM-ELEMENT'}</div>{selectedItem.type === 'text' && <><label className="field-label">Inhalt<textarea value={selectedItem.text} onChange={e => patch(selectedItem.id, { text: e.target.value })}/></label><label className="field-label">Schriftgröße<input type="number" min="1" max="20" step=".2" value={selectedItem.size} disabled={layoutLocked} onChange={e => patch(selectedItem.id, { size: Math.max(1, Number(e.target.value) || 1) })}/></label><label className="field-label">Textfarbe<input type="color" value={selectedItem.color} disabled={layoutLocked} onChange={e => patch(selectedItem.id, { color: e.target.value })}/></label></>}{selectedItem.type === 'rect' && <><label className="field-label">Füllfarbe<input value={selectedItem.fill} disabled={layoutLocked} onChange={e => patch(selectedItem.id, { fill: e.target.value })} placeholder="none oder #ffffff"/></label><label className="field-label">Linienfarbe<input type="color" value={selectedItem.stroke} disabled={layoutLocked} onChange={e => patch(selectedItem.id, { stroke: e.target.value })}/></label></>}{selectedItem.type === 'image' && <p className="helper-text">{selectedItem.name}<br/>Bildposition und Größe werden später hier einstellbar.</p>}<div className="position-grid"><label className="field-label">X (mm)<input type="number" value={Number(selectedItem.x.toFixed(1))} disabled={layoutLocked} onChange={e => patch(selectedItem.id, { x: Number(e.target.value) })}/></label><label className="field-label">Y (mm)<input type="number" value={Number(selectedItem.y.toFixed(1))} disabled={layoutLocked} onChange={e => patch(selectedItem.id, { y: Number(e.target.value) })}/></label></div><button className="delete-button" onClick={removeSelected} disabled={layoutLocked}>Element löschen</button></> : <div className="empty-inspector"><span>↖</span><b>Kein Element ausgewählt</b><p>Wähle ein Element auf der Karte oder in den Ebenen aus, um seine Eigenschaften zu bearbeiten.</p></div>}</div><div className="right-tip"><b>PRO-TIPP</b><p>Speichere ein fertiges Layout als Vorlage. Bei Karten aus eigenen Vorlagen bleiben Positionen und Gestaltung fixiert; Textinhalte kannst du weiterhin bearbeiten.</p></div></aside></div>
+    <footer className="app-footer"><span>CardForge <b>0.2.0 · Projekt & Karten</b></span><span>{store.workspaces.length} Projekte · {workspace.cards.length} Karten · automatisch lokal gespeichert</span><span>Windows-Desktop-Projekt</span></footer>
+    {showNewCard && <div className="modal-backdrop"><div className="modal-card"><h2>Neue Karte anlegen</h2><p>Vergib einen Namen und wähle, womit die Karte starten soll.</p><label className="field-label">Kartenname<input autoFocus value={newCardName} onChange={e => setNewCardName(e.target.value)} /></label><label className="field-label">Set / Gruppe<input value={newCardSet} onChange={e => setNewCardSet(e.target.value)} placeholder="Unsortiert" /></label><label className="field-label">Startvorlage<select value={newCardSource} onChange={e => setNewCardSource(e.target.value)}><option value="blank">Leere Karte – frei gestalten</option><option value="sample">Beispiel-Layout mit Titel und Rahmen</option>{sizePresets.map(p => <option key={p.name} value={`preset:${p.name}`}>Leere Karte im Format {p.name} ({p.width} × {p.height} mm)</option>)}{workspace.templates.map(t => <option key={t.id} value={`saved:${t.id}`}>Eigene Vorlage: {t.name}</option>)}</select></label><div className="modal-actions"><button onClick={() => setShowNewCard(false)}>Abbrechen</button><button className="primary" onClick={() => { if (newCardSource === 'sample') { setNewCardSource('sample'); } createCard(); }}>Karte erstellen</button></div></div></div>}
+    {showSaveTemplate && <div className="modal-backdrop"><div className="modal-card"><h2>Vorlage speichern</h2><p>Das aktuelle Layout wird als wiederverwendbare Vorlage im Projekt gespeichert.</p><label className="field-label">Vorlagenname<input autoFocus value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveTemplate(); }}/></label><div className="modal-actions"><button onClick={() => setShowSaveTemplate(false)}>Abbrechen</button><button className="primary" onClick={saveTemplate}>Vorlage speichern</button></div></div></div>}
+  </div>;
+}
