@@ -72,3 +72,10 @@
 .inspector .field-label input[type="number"] { width: 100%; }
 .inspector .position-grid { gap: 9px; }
 .inspector .field-label select { min-width: 0; }
+
+/* Griff zum Ziehen der Elementgröße */
+.resize-handle{vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 1px #ffffff);}
+.resize-handle:hover{fill:#dceaff;}
+
+/* Editor grid and snap controls */
+.canvas-title{display:flex;align-items:center;gap:7px;min-width:0}.canvas-tools{display:flex;align-items:center;gap:7px}.canvas-toggle{border:1px solid #dce2da;background:#fff;border-radius:6px;padding:6px 9px;color:#536157;font-size:10px;font-weight:600;white-space:nowrap}.canvas-toggle.active{border-color:#9ebaa4;background:#eaf3eb;color:#315a45}.canvas-toggle:hover{border-color:#9ebaa4}.canvas-toolbar{gap:12px}.canvas-title .lock-label{margin-left:5px}
