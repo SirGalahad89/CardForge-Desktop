@@ -79,3 +79,8 @@
 
 /* Editor grid and snap controls */
 .canvas-title{display:flex;align-items:center;gap:7px;min-width:0}.canvas-tools{display:flex;align-items:center;gap:7px}.canvas-toggle{border:1px solid #dce2da;background:#fff;border-radius:6px;padding:6px 9px;color:#536157;font-size:10px;font-weight:600;white-space:nowrap}.canvas-toggle.active{border-color:#9ebaa4;background:#eaf3eb;color:#315a45}.canvas-toggle:hover{border-color:#9ebaa4}.canvas-toolbar{gap:12px}.canvas-title .lock-label{margin-left:5px}
+
+/* CardForge 0.8: besser sichtbares Raster und Mausrad-Zoom */
+.canvas-scroll{overscroll-behavior:contain;cursor:default}
+.canvas-scroll:active{cursor:default}
+.zoom-controls span{min-width:38px;text-align:center;font-variant-numeric:tabular-nums}
