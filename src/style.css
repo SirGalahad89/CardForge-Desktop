@@ -66,3 +66,9 @@
 .subcategory-check span{overflow-wrap:anywhere}
 @media(max-width:900px){.config-grid{grid-template-columns:1fr}.configuration-page{padding:18px}.config-page-heading h1{font-size:21px}}
 @media(max-width:600px){.app-tabs{padding:7px 10px}.config-page-heading{align-items:flex-start;flex-direction:column}.config-panel{padding:14px}.subcategory-checks{grid-template-columns:1fr}.config-add-row{flex-wrap:wrap}.config-add-row button{width:100%}}
+
+/* CardForge 0.5: präzise Elementmaße und Textformatierung */
+.inspector .field-label select,
+.inspector .field-label input[type="number"] { width: 100%; }
+.inspector .position-grid { gap: 9px; }
+.inspector .field-label select { min-width: 0; }
