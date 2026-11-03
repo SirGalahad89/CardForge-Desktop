@@ -116,3 +116,8 @@
 
 /* v0.17: Ebenenreihenfolge und Transparenz */
 .layer-settings{border:1px solid #e0e8df;border-radius:9px;background:#f9fbf9;padding:11px;margin:0 0 17px}.layer-settings .field-label{margin-bottom:11px}.layer-settings input[type=range]{width:100%;accent-color:#315a45}.layer-order{display:flex;gap:6px;margin-bottom:14px}.layer-order button{flex:1;padding:8px 4px;border:1px solid #d6e1d7;background:#fff;border-radius:6px;font-size:10px;color:#315a45}.layer-order button:disabled{opacity:.4;cursor:not-allowed}.layer-settings .style-toggle{margin:9px 0 13px;display:flex;gap:8px;align-items:center;font-size:11px}.layer-settings .position-grid{gap:7px}.layer-settings .position-grid .field-label{font-size:10px}.layer-settings .background-help{line-height:1.5}
+
+/* v0.18 – Designflächen */
+.area-settings { display:flex; flex-direction:column; gap:9px; margin:12px 0; padding:12px; border:1px solid var(--border, #394449); border-radius:8px; }
+.area-border-controls { display:flex; gap:8px; }
+.area-border-controls button { flex:1; padding:7px; cursor:pointer; }
