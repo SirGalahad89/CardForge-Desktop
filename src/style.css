@@ -121,3 +121,20 @@
 .area-settings { display:flex; flex-direction:column; gap:9px; margin:12px 0; padding:12px; border:1px solid var(--border, #394449); border-radius:8px; }
 .area-border-controls { display:flex; gap:8px; }
 .area-border-controls button { flex:1; padding:7px; cursor:pointer; }
+
+/* Version 0.19: Element-Kontextwerkzeuge */
+.cf-menu-dismiss { position: fixed; inset: 0; z-index: 9998; background: transparent; }
+.cf-context-menu { position: fixed; z-index: 9999; width: 315px; max-height: min(80vh, 610px); overflow: auto; background: #fff; color: #1e2c3a; border: 1px solid #a6b7c8; border-radius: 12px; padding: 12px; box-shadow: 0 12px 35px #0004; font-size: 12px; }
+.cf-context-title { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+.cf-context-title button { border: none; background: transparent; font-size: 22px; cursor: pointer; }
+.cf-context-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+.cf-context-actions button { flex: 1; }
+.cf-menu-line { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+.cf-menu-line span { min-width: 72px; }
+.cf-menu-line input[type=range] { min-width: 0; flex: 1; }
+.cf-menu-line b { min-width: 34px; text-align: right; }
+.cf-direction-row { display: flex; align-items: center; gap: 15px; margin: 10px 0; }
+.cf-direction-row svg { flex-shrink: 0; cursor: crosshair; touch-action: none; }
+.cf-direction-row input { width: 65px; margin-top: 6px; }
+.cf-direction-row small { display: block; margin-top: 6px; color: #576a7d; }
+.cf-context-close { width: 100%; margin-top: 10px; }
