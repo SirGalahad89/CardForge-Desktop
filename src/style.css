@@ -145,3 +145,14 @@
 .cf-context-image { display: flex; flex-direction: column; gap: 7px; margin: 8px 0 14px; padding: 10px; background: #f1f6fa; border-radius: 8px; }
 .cf-context-image select, .cf-context-image button { width: 100%; }
 .cf-context-image small { overflow-wrap: anywhere; }
+
+/* CardForge 0.21: Kartenliste bleibt unabhängig scrollbar, Suche ist dauerhaft sichtbar. */
+.card-tree{height:clamp(220px,38vh,620px);max-height:none;min-height:180px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:5px}
+.cf-card-search{margin-top:12px;margin-bottom:9px}
+.cf-card-search input[type=search]{width:100%;border:1px solid #dfe4de;border-radius:7px;padding:9px 10px;font:500 12px 'DM Sans',sans-serif}
+
+/* CardForge 0.22 */
+.artwork-settings { border:1px solid var(--border, #aab6c2); border-radius:8px; padding:10px; margin:10px 0; }
+.artwork-settings .canvas-toggle { margin:6px 0; }
+.cf-context-menu { max-height:calc(100vh - 20px); overflow-y:auto; }
+.cf-context-menu select { max-width:100%; }
