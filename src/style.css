@@ -138,3 +138,10 @@
 .cf-direction-row input { width: 65px; margin-top: 6px; }
 .cf-direction-row small { display: block; margin-top: 6px; color: #576a7d; }
 .cf-context-close { width: 100%; margin-top: 10px; }
+
+/* v0.20: verschiebbares Werkzeugfenster und Designflächenbild */
+.cf-context-title { cursor: grab; user-select: none; touch-action: none; padding: 5px 2px 10px; border-bottom: 1px solid #dce4ec; }
+.cf-context-title:active { cursor: grabbing; }
+.cf-context-image { display: flex; flex-direction: column; gap: 7px; margin: 8px 0 14px; padding: 10px; background: #f1f6fa; border-radius: 8px; }
+.cf-context-image select, .cf-context-image button { width: 100%; }
+.cf-context-image small { overflow-wrap: anywhere; }
