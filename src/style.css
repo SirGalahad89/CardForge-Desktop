@@ -156,3 +156,6 @@
 .artwork-settings .canvas-toggle { margin:6px 0; }
 .cf-context-menu { max-height:calc(100vh - 20px); overflow-y:auto; }
 .cf-context-menu select { max-width:100%; }
+
+/* CardForge 0.22.5 – Projektfarbpalette */
+.cf-palette-add{display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:5px;margin:8px 0}.cf-palette-add input{min-width:0;max-width:100%;box-sizing:border-box}.cf-palette-add input[type=color]{width:42px;height:32px;padding:1px}.cf-palette-add button{grid-column:1/-1}.cf-palette-list{max-height:180px;overflow:auto}.cf-palette-row{display:flex;align-items:center;gap:7px;padding:4px 0}.cf-palette-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12px}.cf-palette-row small{display:block;opacity:.65}.cf-palette-swatch{width:27px;height:27px;min-width:27px;border:1px solid #999;border-radius:4px;cursor:pointer}.cf-palette-row>button:last-child{border:0;background:transparent;cursor:pointer;font-size:18px}
