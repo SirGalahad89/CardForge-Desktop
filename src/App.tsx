@@ -389,21 +389,34 @@ export default function App() {
  const sx = Math.max(1, item.fadeSizeX ?? 100) / 100;
  const sy = Math.max(1, item.fadeSizeY ?? 100) / 100;
  const feather = Math.max(0, Math.min(50, item.edgeFeather ?? 0));
+ // 256 interpolierte Alphawerte: der zusätzliche Weichheitsregler glättet
+ // nur den Transparenzübergang, niemals die Außenkanten der Designfläche.
+ const alphaAt = (position: number) => {
+   const t = Math.max(0, Math.min(100, position));
+   if (t <= start) return from / 100;
+   if (t >= end) return to / 100;
+   const smooth = (v: number) => v * v * (3 - 2 * v);
+   const blend = Math.max(0, Math.min(1, feather / 50));
+   const part = t <= midpoint ? (t - start) / Math.max(0.001, midpoint - start) : (t - midpoint) / Math.max(0.001, end - midpoint);
+   const eased = part * (1 - blend) + smooth(part) * blend;
+   return t <= midpoint ? (from + (to - from) * 0.5 * eased) / 100 : ((from + to) / 2 + (to - from) * 0.5 * eased) / 100;
+ };
+ const fadeStops = Array.from({length: 257}, (_, i) => <stop key={i} offset={`${i / 256 * 100}%`} stopColor="white" stopOpacity={alphaAt(i / 256 * 100)}/>);
  const a = (item.fadeAngle ?? 0) * Math.PI / 180;
  const dx = Math.sin(a), dy = Math.cos(a);
  // Gradients are defined in each element's own coordinates, so rotating/moving an element also moves its fade.
  return <Fragment key={item.id}><mask id={`layer-mask-${item.id}`} maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x={item.x - item.w * 2} y={item.y - item.h * 2} width={item.w * 5} height={item.h * 5} style={{ maskType: 'alpha' }}>
  <g>{shape === 'linear' ? <>
  <linearGradient id={`layer-fade-${item.id}`} gradientUnits="userSpaceOnUse" x1={item.x + item.w * (0.5 - dx / 2)} y1={item.y + item.h * (0.5 - dy / 2)} x2={item.x + item.w * (0.5 + dx / 2)} y2={item.y + item.h * (0.5 + dy / 2)}>
- <stop offset={`${Math.max(0, start - (from < to ? feather : 0))}%`} stopColor="white" stopOpacity={from / 100}/><stop offset={`${midpoint}%`} stopColor="white" stopOpacity={(from + to) / 200}/><stop offset={`${Math.min(100, end + (to < from ? feather : 0))}%`} stopColor="white" stopOpacity={to / 100}/></linearGradient>
+ {fadeStops}</linearGradient>
  <rect x={item.x - item.w * 2} y={item.y - item.h * 2} width={item.w * 5} height={item.h * 5} fill={`url(#layer-fade-${item.id})`}/>
  </> : shape === 'circle' ? <>
  <radialGradient id={`layer-fade-${item.id}`} gradientUnits="userSpaceOnUse" cx={item.x + item.w * centerX} cy={item.y + item.h * centerY} r="1" gradientTransform={`translate(${item.x + item.w * centerX} ${item.y + item.h * centerY}) rotate(${item.fadeAngle ?? 0}) scale(${item.w * sx / 2} ${item.h * sy / 2}) translate(${-item.x - item.w * centerX} ${-item.y - item.h * centerY})`}>
- <stop offset={`${Math.max(0, start - (from < to ? feather : 0))}%`} stopColor="white" stopOpacity={from / 100}/><stop offset={`${midpoint}%`} stopColor="white" stopOpacity={(from + to) / 200}/><stop offset={`${Math.min(100, end + (to < from ? feather : 0))}%`} stopColor="white" stopOpacity={to / 100}/></radialGradient>
+ {fadeStops}</radialGradient>
  <rect x={item.x - item.w * 2} y={item.y - item.h * 2} width={item.w * 5} height={item.h * 5} fill={`url(#layer-fade-${item.id})`}/>
  </> : <>
- <linearGradient id={`layer-fade-${item.id}`} x1="0" y1="0" x2="1" y2="0"><stop offset={`${start}%`} stopColor="white" stopOpacity={from / 100}/><stop offset={`${midpoint}%`} stopColor="white" stopOpacity={(from + to) / 200}/><stop offset={`${end}%`} stopColor="white" stopOpacity={to / 100}/></linearGradient>
- {Array.from({length: 128}, (_,i) => { const t = (i+0.5)/128; const halfW = item.w * sx * t / 2; const halfH = item.h * sy * t / 2; const x = item.x + item.w * centerX; const y = item.y + item.h * centerY; const strength = t*100 <= start ? from/100 : t*100 >= end ? to/100 : t*100 <= midpoint ? (from + (to-from)*0.5*(t*100-start)/Math.max(0.001,midpoint-start))/100 : ((from+to)/2 + (to-from)*0.5*(t*100-midpoint)/Math.max(0.001,end-midpoint))/100; return <rect key={i} x={x-halfW} y={y-halfH} width={halfW*2} height={halfH*2} fill="white" fillOpacity={strength} transform={`rotate(${item.fadeAngle ?? 0} ${x} ${y})`}/>; }).reverse()}
+ {/* Rechteckmaske: disjunkte Ringe statt übereinandergelegter halbtransparenter Flächen. */}
+ {Array.from({length: 256}, (_,i) => { const outer = (i+1)/256; const inner = i/256; const cx = item.x + item.w*centerX; const cy = item.y + item.h*centerY; const ow = item.w*sx*outer/2; const oh = item.h*sy*outer/2; const iw = item.w*sx*inner/2; const ih = item.h*sy*inner/2; const outerPath = `M ${cx-ow} ${cy-oh} H ${cx+ow} V ${cy+oh} H ${cx-ow} Z`; const innerPath = `M ${cx-iw} ${cy-ih} H ${cx+iw} V ${cy+ih} H ${cx-iw} Z`; return <path key={i} d={`${outerPath} ${innerPath}`} fillRule="evenodd" fill="white" fillOpacity={alphaAt((i+0.5)/256*100)} transform={`rotate(${item.fadeAngle ?? 0} ${cx} ${cy})`}/>; })}
  </>}
  </g></mask></Fragment>;
 })}{design.items.filter((item): item is DesignAreaItem => item.type === 'designArea').map(item => <linearGradient key={item.id} id={`area-gradient-${item.id}`} x1="0" y1="0" x2="0" y2="1" gradientTransform={`rotate(${item.gradientAngle ?? 0} .5 .5)`}><stop offset={`${Math.min(item.gradientStart ?? 0, item.gradientEnd ?? 100)}%`} stopColor={item.fillColor}/><stop offset={`${Math.max(item.gradientStart ?? 0, item.gradientEnd ?? 100)}%`} stopColor={item.secondColor}/></linearGradient>)}{design.items.filter((item): item is DesignAreaItem => item.type === 'designArea').map(item => <clipPath key={item.id} id={`area-clip-${item.id}`}><rect x={item.x} y={item.y} width={item.w} height={item.h}/></clipPath>)}<linearGradient id="card-background-gradient" x1="0" y1="0" x2="0" y2="1" gradientTransform={`rotate(${design.gradientAngle ?? 0} 0.5 0.5)`}><stop offset="0%" stopColor={design.background || '#f8f4e9'}/><stop offset={`${design.gradientBalance ?? 50}%`} stopColor={design.background || '#f8f4e9'}/><stop offset="100%" stopColor={design.gradientColor || '#d4e4d5'}/></linearGradient></defs><rect width={design.width} height={design.height} fill={design.backgroundMode === 'gradient' ? 'url(#card-background-gradient)' : design.background || '#f8f4e9'}/>{design.backgroundMode === 'image' && design.backgroundImage && <image x="0" y="0" width={design.width} height={design.height} href={design.backgroundImage} preserveAspectRatio="xMidYMid slice" pointerEvents="none"/>}{editingArtwork && design.items.filter((i): i is DesignAreaItem => i.type === 'designArea' && i.id === editingArtwork && Boolean(i.imageHref)).map(i => <g key={`artwork-edit-${i.id}`} data-editor-ui="true" onPointerDown={e => { e.stopPropagation(); if (e.button !== 0) return; const p = pointerToCard(e); artworkDrag.current = {id:i.id,pointerId:e.pointerId,startX:p.x,startY:p.y,x:i.imageOffsetX??0,y:i.imageOffsetY??0}; e.currentTarget.setPointerCapture(e.pointerId); }} onPointerMove={e => { const d=artworkDrag.current; if (!d || d.pointerId !== e.pointerId) return; const p=pointerToCard(e); patch(d.id, {imageOffsetX:d.x+p.x-d.startX,imageOffsetY:d.y+p.y-d.startY}); }} onPointerUp={e=>{if(artworkDrag.current?.pointerId===e.pointerId) artworkDrag.current=null;}} onPointerCancel={()=>{artworkDrag.current=null;}}>
