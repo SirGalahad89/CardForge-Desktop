@@ -163,3 +163,8 @@
 /* Präziser, frei eingebbarer Arbeitsflächen-Zoom */
 .cf-zoom-number { display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
 .cf-zoom-number input { width:76px; min-width:0; padding:4px 5px; text-align:right; border:1px solid #687489; border-radius:4px; background:transparent; color:inherit; font:inherit; }
+
+/* 0.23.6: Wiederholgenaue numerische Eingaben und eigenständige Karten-Navigation */
+.field-label input.cf-exact-value,.cf-context-menu input.cf-exact-value,input.cf-exact-value{box-sizing:border-box;width:94px;max-width:100%;min-width:70px;height:30px;padding:4px 7px;margin:5px 0 8px;border:1px solid #b6c4b9;border-radius:5px;background:#fff;color:#263d2f;font-size:12px;font-variant-numeric:tabular-nums;}
+.card-tree{display:block !important;flex:none !important;height:clamp(240px,45vh,720px) !important;min-height:240px !important;max-height:none !important;overflow-y:scroll !important;overflow-x:hidden !important;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:auto;scrollbar-color:#8da595 #e9eeea;}
+.card-tree::-webkit-scrollbar{width:11px}.card-tree::-webkit-scrollbar-thumb{background:#8da595;border-radius:7px;border:2px solid #e9eeea}.card-tree::-webkit-scrollbar-track{background:#e9eeea}.card-tree-group{margin-bottom:8px}.card-tree-item{width:100%}
