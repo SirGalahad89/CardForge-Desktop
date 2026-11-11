@@ -177,3 +177,19 @@
 .artboard-wrap .cf-ruler-y{top:42px;left:16px;border-right:1px solid #a9b8c0}
 .cf-ruler-corner{position:absolute;left:16px;top:16px;width:26px;height:26px;background:#dce5e9;border:1px solid #a9b8c0;display:grid;place-items:center;font-size:9px;color:#415665}
 .cf-ruler-select{border:1px solid #dce2da;border-radius:6px;padding:5px;background:white;color:#536157;font-size:10px;max-width:75px}
+
+/* CardForge 0.24.0 – Werkbank, Montagefläche und Druckhilfen */
+.cf-workbench-layout{display:flex;align-items:stretch;min-height:0;flex:1;overflow:hidden}
+.cf-workbench-layout>.canvas-scroll{flex:1;min-width:0;min-height:0}
+.cf-workbench{flex:0 0 91px;min-width:91px;background:#f0f4f1;border-right:1px solid #c9d4cb;display:flex;flex-direction:column;gap:4px;overflow-y:auto;overflow-x:hidden;padding:8px 5px;box-sizing:border-box;z-index:3}
+.cf-workbench-title{font-size:9px;letter-spacing:1px;color:#5b7064;text-align:center;margin:4px 0 8px}
+.cf-workbench>button{border:1px solid transparent;background:transparent;border-radius:7px;min-height:49px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:#344c40;cursor:pointer;padding:4px}
+.cf-workbench>button span{font-size:20px;line-height:23px}.cf-workbench>button small{font-size:9px;line-height:11px;text-align:center}
+.cf-workbench>button:hover{background:#e0eae2}.cf-workbench>button.cf-tool-active{background:#d7e8dc;border-color:#7aaa88;color:#18492a}
+.cf-workbench-divider{height:1px;background:#cad6ce;margin:7px 2px}
+.cf-workbench-input{display:flex;align-items:center;flex-wrap:wrap;justify-content:center;gap:3px;font-size:9px;color:#3c5346;text-align:center;margin:3px 0}
+.cf-workbench-input input{width:51px;padding:3px;border:1px solid #b9cbbf;border-radius:4px;font-size:11px}
+.cf-measure-readout{display:flex;flex-direction:column;gap:3px;overflow-wrap:anywhere;font-size:10px;text-align:center;color:#2d4b39}.cf-measure-readout small{font-size:9px}
+.artboard-wrap .cf-ruler-offset-x{position:absolute;top:16px;height:26px;z-index:3;pointer-events:none}.artboard-wrap .cf-ruler-offset-y{position:absolute;left:16px;width:26px;z-index:3;pointer-events:none}
+.artboard-wrap .cf-ruler-offset-x .cf-ruler-x,.artboard-wrap .cf-ruler-offset-y .cf-ruler-y{position:static}
+.cf-workbench-unit{width:100%;font-size:10px;padding:4px;border:1px solid #b9cbbf;border-radius:4px;background:#fff}
