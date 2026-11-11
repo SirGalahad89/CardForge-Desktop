@@ -168,3 +168,12 @@
 .field-label input.cf-exact-value,.cf-context-menu input.cf-exact-value,input.cf-exact-value{box-sizing:border-box;width:94px;max-width:100%;min-width:70px;height:30px;padding:4px 7px;margin:5px 0 8px;border:1px solid #b6c4b9;border-radius:5px;background:#fff;color:#263d2f;font-size:12px;font-variant-numeric:tabular-nums;}
 .card-tree{display:block !important;flex:none !important;height:clamp(240px,45vh,720px) !important;min-height:240px !important;max-height:none !important;overflow-y:scroll !important;overflow-x:hidden !important;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:auto;scrollbar-color:#8da595 #e9eeea;}
 .card-tree::-webkit-scrollbar{width:11px}.card-tree::-webkit-scrollbar-thumb{background:#8da595;border-radius:7px;border:2px solid #e9eeea}.card-tree::-webkit-scrollbar-track{background:#e9eeea}.card-tree-group{margin-bottom:8px}.card-tree-item{width:100%}
+
+/* CardForge 0.23.9: editor-only card rulers */
+.artboard-wrap{position:relative}
+.artboard-wrap.cf-with-rulers{padding-top:42px;padding-left:42px}
+.artboard-wrap .cf-ruler{position:absolute;box-shadow:none!important;overflow:hidden!important;touch-action:auto;pointer-events:none;z-index:2}
+.artboard-wrap .cf-ruler-x{top:16px;left:42px;border-bottom:1px solid #a9b8c0}
+.artboard-wrap .cf-ruler-y{top:42px;left:16px;border-right:1px solid #a9b8c0}
+.cf-ruler-corner{position:absolute;left:16px;top:16px;width:26px;height:26px;background:#dce5e9;border:1px solid #a9b8c0;display:grid;place-items:center;font-size:9px;color:#415665}
+.cf-ruler-select{border:1px solid #dce2da;border-radius:6px;padding:5px;background:white;color:#536157;font-size:10px;max-width:75px}
