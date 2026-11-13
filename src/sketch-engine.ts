@@ -414,13 +414,21 @@ export const detectPlanarFaces=(sk:Sketch,tolerance=0.01):SketchProfile[]=>{
 /** Keep established nested-hole behavior for disjoint rings; use bounded faces
  * when a connected line network contains shared edges / branch vertices. */
 export const detectTopologyRegions=(sk:Sketch,tolerance=0.01):SketchRegion[]=>{
+ // Native rectangle objects are closed profiles in their own right. Unlike
+ // four independent lines, they must not depend on the line-graph detector.
+ const rectangles:SketchRegion[]=sk.items.filter(item=>item.kind==='rect'&&!item.construction&&Math.abs(item.w)>tolerance&&Math.abs(item.h)>tolerance).map(item=>{
+  const x0=Math.min(item.x,item.x+item.w),x1=Math.max(item.x,item.x+item.w);
+  const y0=Math.min(item.y,item.y+item.h),y1=Math.max(item.y,item.y+item.h);
+  const outer:SketchProfile={id:'rect:'+item.id,itemIds:[item.id],points:[{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}],area:(x1-x0)*(y1-y0)};
+  return {id:outer.id,outer,holes:[],area:outer.area};
+ });
  const traditional=detectProfileRegions(sk,tolerance);
  const faces=detectPlanarFaces(sk,tolerance);
- if(!faces.length)return traditional;
+ if(!faces.length)return [...traditional,...rectangles];
  const traditionalIds=new Set(traditional.flatMap(r=>[...r.outer.itemIds,...r.holes.flatMap(h=>h.itemIds)]));
  const extra=faces.filter(f=>!f.itemIds.every(id=>traditionalIds.has(id)));
- if(!extra.length)return traditional;
- return [...traditional,...extra.map(outer=>({id:outer.id,outer,holes:[],area:outer.area}))];
+ if(!extra.length)return [...traditional,...rectangles];
+ return [...traditional,...extra.map(outer=>({id:outer.id,outer,holes:[],area:outer.area})),...rectangles];
 };
 
 /** Conservative, local mobility estimate. It deliberately never claims that a
