@@ -5,7 +5,7 @@ export type SketchItem={id:string;kind:Kind;x:number;y:number;w:number;h:number;
 export type Junction={id:string;sourceId:string;sourceEnd:0|1;targetId:string;targetEnd:0|1};
 export type NodeMember={itemId:string;end:0|1};
 export type SketchNode={id:string;x:number;y:number;members:NodeMember[]};
-export type DrivingDimension={id:string;itemId:string;kind:'length'|'radius'|'width';valueMM:number};
+export type DrivingDimension={id:string;itemId:string;kind:'length'|'radius'|'width'|'height';valueMM:number};
 export type Sketch={items:SketchItem[];dpi:number;dimensions?:DrivingDimension[];relations?:Relation[];junctions?:Junction[];nodes?:SketchNode[];dimensionOffsets?:Record<string,{x:number;y:number}>};
 export const relationNames:Record<Relation['kind'],string>={parallel:'Parallel',perpendicular:'Senkrecht',coincident:'Endpunkt',equal:'Gleiche Länge',concentric:'Konzentrisch',equalRadius:'Gleicher Radius',tangentCircles:'Tangential'};
 export const validSketch=(v:unknown):v is Sketch=>{
@@ -25,7 +25,7 @@ export const validSketch=(v:unknown):v is Sketch=>{
   for(const d of s.dimensions){
    const item=s.items.find(i=>i.id===d?.itemId);
    if(!d||typeof d.id!=='string'||!d.id||!item||!Number.isFinite(d.valueMM)||d.valueMM<=0||
-      !((d.kind==='length'&&item.kind==='line')||(d.kind==='radius'&&item.kind==='circle')||(d.kind==='width'&&item.kind==='rect'))||used.has(d.itemId+':'+d.kind))return false;
+      !((d.kind==='length'&&item.kind==='line')||(d.kind==='radius'&&item.kind==='circle')||((d.kind==='width'||d.kind==='height')&&item.kind==='rect'))||used.has(d.itemId+':'+d.kind))return false;
    used.add(d.itemId+':'+d.kind);
   }
   if(new Set(s.dimensions.map(d=>d.id)).size!==s.dimensions.length)return false;
@@ -211,6 +211,7 @@ export const resolveRelations=(sk:Sketch):Sketch=>{
   const value=d.valueMM*sk.dpi/25.4;
   if(d.kind==='radius'&&item.kind==='circle')item.w=value;
   if(d.kind==='width'&&item.kind==='rect')item.w=Math.sign(item.w||1)*value;
+  if(d.kind==='height'&&item.kind==='rect')item.h=Math.sign(item.h||1)*value;
   if(d.kind==='length'&&item.kind==='line'){
    const old=Math.hypot(item.w,item.h),theta=old>1e-9?Math.atan2(item.h,item.w):0;
    const w=value*Math.cos(theta),h=value*Math.sin(theta);
@@ -487,6 +488,7 @@ export function inspectConstraintRank(sk:Sketch):RankDiagnosis{
   if(d.kind==='length')equations.push(v=>{const p=get(v,d.itemId)!;return Math.hypot(p[2],p[3])-d.valueMM;});
   if(d.kind==='radius')equations.push(v=>get(v,d.itemId)![2]-d.valueMM);
   if(d.kind==='width')equations.push(v=>get(v,d.itemId)![2]-d.valueMM);
+  if(d.kind==='height')equations.push(v=>get(v,d.itemId)![3]-d.valueMM);
  });
  (sk.nodes||[]).forEach(node=>node.members.forEach(m=>addPair(v=>{const p=get(v,m.itemId)!;const e=endpoint(p,m.end);return [e[0]-node.x*px,e[1]-node.y*px];})));
  (sk.junctions||[]).forEach(j=>addPair(v=>{const a=endpoint(get(v,j.sourceId)!,j.sourceEnd),b=endpoint(get(v,j.targetId)!,j.targetEnd);return [b[0]-a[0],b[1]-a[1]];}));

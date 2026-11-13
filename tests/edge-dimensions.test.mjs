@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {applyDrivingDimension}=require('../test-build/sketch-dimension-edit.cjs');
+const mm=300/25.4;
+const base={dpi:300,items:[{id:'rect1',kind:'rect',x:0,y:0,w:10*mm,h:15*mm,construction:false}],dimensions:[]};
+test('top edge changes width only',()=>{const r=applyDrivingDimension(base,'rect1',40,'width');assert.equal(r.ok,true);assert.ok(Math.abs(r.sketch.items[0].w/mm-40)<.01);assert.ok(Math.abs(r.sketch.items[0].h/mm-15)<.01);});
+test('right edge changes height only',()=>{const r=applyDrivingDimension(base,'rect1',25,'height');assert.equal(r.ok,true);assert.ok(Math.abs(r.sketch.items[0].h/mm-25)<.01);assert.ok(Math.abs(r.sketch.items[0].w/mm-10)<.01);});
+test('independent width and height dimensions persist',()=>{const a=applyDrivingDimension(base,'rect1',40,'width');assert.equal(a.ok,true);const b=applyDrivingDimension(a.sketch,'rect1',25,'height');assert.equal(b.ok,true);assert.equal(b.sketch.dimensions.length,2);assert.ok(Math.abs(b.sketch.items[0].w/mm-40)<.01);assert.ok(Math.abs(b.sketch.items[0].h/mm-25)<.01);});
