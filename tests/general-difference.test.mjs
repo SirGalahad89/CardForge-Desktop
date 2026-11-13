@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {previewGeneralProfileDifference}=require('../test-build/sketch-profile-intersection.cjs');
+const ring=(id,points)=>({id,itemIds:[],points,area:Math.abs(points.reduce((s,p,i)=>s+p.x*points[(i+1)%points.length].y-p.y*points[(i+1)%points.length].x,0)/2)});
+const rect=(id,x,y,w,h)=>ring(id,[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]);
+const region=(id,outer,holes=[])=>({id,outer,holes,area:outer.area-holes.reduce((a,h)=>a+h.area,0)});
+test('concave L shaped base minus rectangle',()=>{const b=region('b',ring('L',[{x:0,y:0},{x:10,y:0},{x:10,y:4},{x:4,y:4},{x:4,y:10},{x:0,y:10}]));const c=region('c',rect('c',2,2,4,4));const r=previewGeneralProfileDifference(b,c);assert.equal(r.ok,true);assert.ok(Math.abs(r.area-52)<1e-5);});
+test('cut across middle yields disconnected remainders',()=>{const r=previewGeneralProfileDifference(region('b',rect('b',0,0,10,10)),region('c',rect('c',4,-1,2,12)));assert.equal(r.ok,true);assert.equal(r.regions.length,2);assert.ok(Math.abs(r.area-80)<1e-5);});
+test('enclosed cutter yields hole',()=>{const r=previewGeneralProfileDifference(region('b',rect('b',0,0,10,10)),region('c',rect('c',3,3,4,4)));assert.equal(r.ok,true);assert.equal(r.holeCount,1);assert.ok(Math.abs(r.area-84)<1e-5);});
+test('disjoint cutter leaves base unchanged',()=>{const r=previewGeneralProfileDifference(region('b',rect('b',0,0,10,10)),region('c',rect('c',20,20,4,4)));assert.equal(r.ok,true);assert.ok(Math.abs(r.area-100)<1e-5);});
+test('cutter hole restores material',()=>{const b=region('b',rect('b',0,0,20,20)),c=region('c',rect('c',4,4,12,12),[rect('h',7,7,6,6)]);const r=previewGeneralProfileDifference(b,c);assert.equal(r.ok,true);assert.ok(Math.abs(r.area-292)<1e-5);});

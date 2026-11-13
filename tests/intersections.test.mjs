@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {detectSketchIntersections}=require('../test-build/sketch-intersections.cjs');
+const line=(id,x,y,w,h,construction=false)=>({id,kind:'line',x,y,w,h,construction});
+test('crossing diagonals',()=>{const hits=detectSketchIntersections({dpi:300,items:[line('a',0,0,10,10),line('b',0,10,10,-10)]});assert.equal(hits.length,1);assert.equal(hits[0].kind,'cross');assert.equal(hits[0].x,5);});
+test('shared endpoint is valid',()=>assert.equal(detectSketchIntersections({dpi:300,items:[line('a',0,0,10,0),line('b',10,0,0,10)]}).length,0));
+test('T junction flagged',()=>assert.equal(detectSketchIntersections({dpi:300,items:[line('a',0,0,10,0),line('b',5,0,0,10)]})[0].kind,'touch'));
+test('collinear overlap flagged',()=>assert.equal(detectSketchIntersections({dpi:300,items:[line('a',0,0,10,0),line('b',5,0,10,0)]})[0].kind,'overlap'));
+test('construction ignored',()=>assert.equal(detectSketchIntersections({dpi:300,items:[line('a',0,0,10,10,true),line('b',0,10,10,-10)]}).length,0));
+test('disjoint segments ignored',()=>assert.equal(detectSketchIntersections({dpi:300,items:[line('a',0,0,1,0),line('b',5,-5,0,10)]}).length,0));

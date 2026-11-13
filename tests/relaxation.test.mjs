@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {relaxSketch}=require('../test-build/sketch-relaxation.cjs');
+const line=(id,x,y,w,h,fixed=false)=>({id,kind:'line',x,y,w,h,construction:false,...(fixed?{constraint:'fixed'}:{})});
+const circle=(id,x,y,r)=>({id,kind:'circle',x,y,w:r,h:0,construction:false});
+test('connected endpoints meet symmetrically',()=>{const sk={dpi:25.4,items:[line('a',0,0,10,0),line('b',20,0,10,0)],junctions:[{id:'j',sourceId:'a',sourceEnd:1,targetId:'b',targetEnd:0}]};const r=relaxSketch(sk);assert.equal(r.converged,true);assert.ok(Math.abs(r.sketch.items[0].x+r.sketch.items[0].w-r.sketch.items[1].x)<0.01);});
+test('fixed geometry stays fixed',()=>{const sk={dpi:25.4,items:[line('a',0,0,10,0,true),line('b',20,0,10,0)],junctions:[{id:'j',sourceId:'a',sourceEnd:1,targetId:'b',targetEnd:0}]};const r=relaxSketch(sk);assert.equal(r.converged,true);assert.equal(r.sketch.items[0].x,0);assert.equal(r.sketch.items[0].w,10);assert.ok(Math.abs(r.sketch.items[1].x-10)<0.01);});
+test('concentric circles share center',()=>{const sk={dpi:25.4,items:[circle('a',0,0,5),circle('b',10,8,4)],relations:[{id:'r',kind:'concentric',sourceId:'a',targetId:'b'}]};const r=relaxSketch(sk);assert.equal(r.converged,true);assert.ok(Math.abs(r.sketch.items[0].x-r.sketch.items[1].x)<0.01);});
+test('dimension preserves target length',()=>{const sk={dpi:25.4,items:[line('a',0,0,5,0)],dimensions:[{id:'d',itemId:'a',kind:'length',valueMM:12}]};const r=relaxSketch(sk);assert.equal(r.converged,true);assert.ok(Math.abs(r.sketch.items[0].w-12)<0.01);});
+test('parallel lines rotate toward common orientation',()=>{const sk={dpi:25.4,items:[line('a',0,0,10,0),line('b',20,0,0,10)],relations:[{id:'r',kind:'parallel',sourceId:'a',targetId:'b'}]};const r=relaxSketch(sk);assert.equal(r.converged,true);const [a,b]=r.sketch.items;assert.ok(Math.abs(a.w*b.h-a.h*b.w)<0.01);});
+test('perpendicular lines reach right angle',()=>{const sk={dpi:25.4,items:[line('a',0,0,10,0),line('b',20,0,10,0)],relations:[{id:'r',kind:'perpendicular',sourceId:'a',targetId:'b'}]};const r=relaxSketch(sk);assert.equal(r.converged,true);const [a,b]=r.sketch.items;assert.ok(Math.abs(a.w*b.w+a.h*b.h)<0.01);});
+test('equal length lines meet in the middle',()=>{const sk={dpi:25.4,items:[line('a',0,0,10,0),line('b',20,0,20,0)],relations:[{id:'r',kind:'equal',sourceId:'a',targetId:'b'}]};const r=relaxSketch(sk);assert.equal(r.converged,true);assert.ok(Math.abs(Math.hypot(r.sketch.items[0].w,r.sketch.items[0].h)-15)<0.01);});
+test('fixed reference remains unchanged when aligning',()=>{const sk={dpi:25.4,items:[line('a',0,0,10,0,true),line('b',20,0,0,10)],relations:[{id:'r',kind:'parallel',sourceId:'a',targetId:'b'}]};const r=relaxSketch(sk);assert.equal(r.converged,true);assert.equal(r.sketch.items[0].h,0);});
+test('contradictory fixed lengths do not falsely converge',()=>{const sk={dpi:25.4,items:[line('a',0,0,10,0,true)],dimensions:[{id:'d',itemId:'a',kind:'length',valueMM:15}]};const r=relaxSketch(sk,5);assert.equal(r.converged,false);assert.ok(r.maxErrorMM>=4.99);});

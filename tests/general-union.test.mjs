@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {previewGeneralProfileUnion}=require('../test-build/sketch-profile-general-union.cjs');
+const ring=(id,points)=>({id,itemIds:[],points,area:Math.abs(points.reduce((s,p,i)=>s+p.x*points[(i+1)%points.length].y-p.y*points[(i+1)%points.length].x,0)/2)});
+const rect=(id,x,y,w,h)=>ring(id,[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]);
+const region=(id,outer,holes=[])=>({id,outer,holes,area:outer.area-holes.reduce((a,h)=>a+h.area,0)});
+test('overlapping rectangles become one union',()=>{const r=previewGeneralProfileUnion(region('a',rect('a',0,0,10,10)),region('b',rect('b',5,0,10,10)));assert.equal(r.ok,true,JSON.stringify(r));assert.equal(r.regions.length,1);assert.ok(Math.abs(r.area-150)<1e-5);});
+test('disjoint rectangles remain two regions',()=>{const r=previewGeneralProfileUnion(region('a',rect('a',0,0,10,10)),region('b',rect('b',20,0,10,10)));assert.equal(r.ok,true,JSON.stringify(r));assert.equal(r.regions.length,2);assert.ok(Math.abs(r.area-200)<1e-5);});
+test('contained polygon leaves outer profile unchanged',()=>{const r=previewGeneralProfileUnion(region('a',rect('a',0,0,10,10)),region('b',rect('b',2,2,3,3)));assert.equal(r.ok,true,JSON.stringify(r));assert.ok(Math.abs(r.area-100)<1e-5);});
+test('concave L profile merges with crossing rectangle',()=>{const l=ring('L',[{x:0,y:0},{x:10,y:0},{x:10,y:4},{x:4,y:4},{x:4,y:10},{x:0,y:10}]);const r=previewGeneralProfileUnion(region('a',l),region('b',rect('b',3,3,7,7)));assert.equal(r.ok,true,JSON.stringify(r));assert.ok(Math.abs(r.area-100)<1e-5);});
+test('hole in first region remains unless filled by second',()=>{const a=region('a',rect('a',0,0,10,10),[rect('hole',3,3,4,4)]);const r=previewGeneralProfileUnion(a,region('b',rect('b',4,4,2,2)));assert.equal(r.ok,true,JSON.stringify(r));assert.ok(Math.abs(r.area-88)<1e-5);});

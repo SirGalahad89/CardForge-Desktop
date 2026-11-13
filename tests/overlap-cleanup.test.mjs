@@ -1,0 +1,18 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {previewOverlap,removeExactOverlap} from '../test-build/sketch-overlap-cleanup.cjs';
+const line=(id,x,w)=>({id,kind:'line',x,y:0,w,h:0,construction:false});
+const hit={kind:'overlap',x:7.5,y:0,itemIds:['a','b']};
+test('partial overlap gives exact endpoints and length',()=>{const s={items:[line('a',0,10),line('b',5,10)]};const p=previewOverlap(s,hit);assert.equal(p.start.x,5);assert.equal(p.end.x,10);assert.equal(p.length,5);assert.equal(p.exactDuplicate,false);assert.equal(removeExactOverlap(s,hit).ok,false);});
+test('exact duplicate can be removed without altering original',()=>{const s={items:[line('a',0,10),line('b',10,-10)]};const r=removeExactOverlap(s,hit);assert.equal(r.ok,true);assert.equal(r.sketch.items.length,1);assert.equal(s.items.length,2);});
+test('CAD node protects duplicate from deletion',()=>{const s={items:[line('a',0,10),line('b',0,10)],nodes:[{id:'n',x:0,y:0,members:[{itemId:'b',end:0}]}]};assert.equal(removeExactOverlap(s,hit).ok,false);});
+test('dimension protects duplicate from deletion',()=>{const s={items:[line('a',0,10),line('b',0,10)],dimensions:[{id:'d',itemId:'b',kind:'length',valueMM:10}]};assert.equal(removeExactOverlap(s,hit).ok,false);});
+test('non-collinear pair is rejected',()=>{const s={items:[line('a',0,10),{...line('b',0,10),y:1}]};assert.equal(previewOverlap(s,hit),null);});
+import {previewPartialOverlapCleanup,cleanupPartialOverlap} from '../test-build/sketch-overlap-cleanup.cjs';
+test('partial overlap partitions union into three non-overlapping connected segments',()=>{const s={items:[line('a',0,10),line('b',5,10)]};const r=cleanupPartialOverlap(s,hit);assert.equal(r.ok,true);assert.deepEqual(r.sketch.items.map(i=>[i.x,i.x+i.w]),[[0,5],[5,10],[10,15]]);assert.equal(r.sketch.nodes.length,2);assert.equal(s.items.length,2);});
+test('nested overlap partitions into three segments',()=>{const s={items:[line('a',0,20),line('b',5,10)]};const r=cleanupPartialOverlap(s,hit);assert.equal(r.ok,true);assert.deepEqual(r.sketch.items.map(i=>[i.x,i.x+i.w]),[[0,5],[5,15],[15,20]]);});
+test('partial overlap with dimension is rejected',()=>{const s={items:[line('a',0,10),line('b',5,10)],dimensions:[{id:'d',itemId:'a',kind:'length',valueMM:10}]};assert.equal(cleanupPartialOverlap(s,hit).ok,false);});
+test('partial overlap with shared node is rejected',()=>{const s={items:[line('a',0,10),line('b',5,10)],nodes:[{id:'n',x:0,y:0,members:[{itemId:'a',end:0}]}]};assert.equal(cleanupPartialOverlap(s,hit).ok,false);});
+test('reverse-directed partial overlap is partitioned',()=>{const s={items:[line('a',10,-10),line('b',15,-10)]};const r=cleanupPartialOverlap(s,hit);assert.equal(r.ok,true);assert.equal(r.sketch.items.length,3);});
+import {previewPartialOverlapGeometry} from '../test-build/sketch-overlap-cleanup.cjs';
+test('preview marks shared middle and planned nodes without mutation',()=>{const s={items:[line('a',0,10),line('b',5,10)]};const original=JSON.stringify(s);const p=previewPartialOverlapGeometry(s,hit);assert.equal(p.ok,true);assert.deepEqual(p.segments.map(x=>x.shared),[false,true,false]);assert.deepEqual(p.nodes.map(x=>x.x),[5,10]);assert.equal(JSON.stringify(s),original);});
+test('preview refuses constrained lines just like cleanup',()=>{const s={items:[line('a',0,10),line('b',5,10)],dimensions:[{id:'d',itemId:'a',kind:'length',valueMM:10}]};assert.equal(previewPartialOverlapGeometry(s,hit).ok,false);});

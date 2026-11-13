@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {previewProfileDifference}=require('../test-build/sketch-profile-difference.cjs');
+const ring=(id,pts)=>({id,itemIds:[id],points:pts,area:Math.abs(pts.reduce((s,p,i)=>s+p.x*pts[(i+1)%pts.length].y-p.y*pts[(i+1)%pts.length].x,0)/2)});
+const square=(id,x,y,w)=>ring(id,[{x,y},{x:x+w,y},{x:x+w,y:y+w},{x,y:y+w}]);
+const region=(id,r,holes=[])=>({id,outer:r,holes,area:r.area-holes.reduce((n,h)=>n+h.area,0)});
+test('contained cutter creates a hole without altering input',()=>{const b=region('b',square('outer',0,0,20)),c=region('c',square('cut',5,5,4));const r=previewProfileDifference(b,c);assert.equal(r.ok,true);assert.equal(r.area,384);assert.equal(r.holeCount,1);assert.equal(r.rings.length,2);assert.equal(b.holes.length,0);});
+test('outside cutter rejected',()=>assert.equal(previewProfileDifference(region('b',square('b',0,0,10)),region('c',square('c',20,20,4))).ok,false));
+test('boundary-aligned overlapping rectangle supported',()=>assert.equal(previewProfileDifference(region('b',square('b',0,0,10)),region('c',square('c',0,2,4))).ok,true));
+test('crossing rectangular boundary supported',()=>assert.equal(previewProfileDifference(region('b',square('b',0,0,10)),region('c',square('c',8,8,4))).ok,true));
+test('cutter intersecting existing hole rejected',()=>assert.equal(previewProfileDifference(region('b',square('b',0,0,20),[square('h',6,6,5)]),region('c',square('c',8,8,5))).ok,false));
+test('partially overlapping rectangles produce L-shaped difference',()=>{const b=region('b',square('b',0,0,10)),c=region('c',square('c',7,7,5));const r=previewProfileDifference(b,c);assert.equal(r.ok,true);assert.equal(r.area,91);assert.equal(r.rings.length,1);assert.equal(r.rings[0].points.length,6);});
+test('edge-spanning rectangle produces a rectangular remainder',()=>{const b=region('b',square('b',0,0,10)),c=region('c',square('c',7,-2,5));const r=previewProfileDifference(b,c);assert.equal(r.ok,true);assert.equal(r.area,91);assert.equal(r.rings[0].points.length,6);});
+test('fully covering cutter rejects zero remainder',()=>{const r=previewProfileDifference(region('b',square('b',0,0,10)),region('c',square('c',-2,-2,20)));assert.equal(r.ok,false);});
+test('partial overlap preserves input',()=>{const b=region('b',square('b',0,0,10)),c=region('c',square('c',8,8,5));const snapshot=JSON.stringify([b,c]);previewProfileDifference(b,c);assert.equal(JSON.stringify([b,c]),snapshot);});

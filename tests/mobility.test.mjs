@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {inspectMobility}=require('../test-build/sketch-engine.cjs');
+const line=(id,constraint)=>({id,kind:'line',x:0,y:0,w:10,h:10,construction:false,constraint});
+test('unconstrained line has four local parameters',()=>{const [r]=inspectMobility({items:[line('a')],dpi:300});assert.equal(r.state,'free');assert.equal(r.freeParameters,4);});
+test('fixed line is marked fixed',()=>{const [r]=inspectMobility({items:[line('a','fixed')],dpi:300});assert.equal(r.state,'fixed');assert.equal(r.freeParameters,0);});
+test('node and length reduce local freedom',()=>{const [r]=inspectMobility({items:[line('a')],dpi:300,nodes:[{id:'n',x:0,y:0,members:[{itemId:'a',end:0}]}],dimensions:[{id:'d',itemId:'a',kind:'length',valueMM:10}]});assert.equal(r.state,'partial');assert.equal(r.freeParameters,1);});
+test('circle radius alone does not make a fully fixed circle',()=>{const [r]=inspectMobility({items:[{id:'c',kind:'circle',x:0,y:0,w:10,h:0,construction:false}],dpi:300,dimensions:[{id:'d',itemId:'c',kind:'radius',valueMM:10}]});assert.equal(r.state,'partial');assert.equal(r.freeParameters,2);});

@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {inspectConstraintRank}=require('../test-build/sketch-engine.cjs');
+const line=(id,x=0,y=0,w=10,h=0,constraint)=>({id,kind:'line',x,y,w,h,construction:false,constraint});
+const sk=(items,extra={})=>({items,dpi:254,...extra});
+test('free line has four degrees',()=>{const d=inspectConstraintRank(sk([line('a')]));assert.equal(d.degreesOfFreedom,4);});
+test('fixed line has no variable parameters',()=>{const d=inspectConstraintRank(sk([line('a',0,0,10,0,'fixed')]));assert.equal(d.degreesOfFreedom,0);});
+test('horizontal and length are independent',()=>{const d=inspectConstraintRank(sk([line('a',0,0,10,0,'horizontal')],{dimensions:[{id:'d',itemId:'a',kind:'length',valueMM:1}]}));assert.equal(d.rank,2);assert.equal(d.degreesOfFreedom,2);});
+test('duplicate length equations are detected as redundant',()=>{const d=inspectConstraintRank(sk([line('a'),line('b')],{relations:[{id:'r',kind:'equal',sourceId:'a',targetId:'b'}],dimensions:[{id:'d1',itemId:'a',kind:'length',valueMM:1},{id:'d2',itemId:'b',kind:'length',valueMM:1}]}));assert.ok(d.redundantEquations>=1);});
+test('incorrect dimension yields residual warning',()=>{const d=inspectConstraintRank(sk([line('a')],{dimensions:[{id:'d',itemId:'a',kind:'length',valueMM:4}]}));assert.equal(d.status,'inconsistent');});

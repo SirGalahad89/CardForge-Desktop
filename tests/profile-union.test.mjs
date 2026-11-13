@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {detectTopologyRegions}=require('../test-build/sketch-engine.cjs');
+const {previewProfileUnion}=require('../test-build/sketch-profile-union.cjs');
+const line=(id,x,y,w,h)=>({id,kind:'line',x,y,w,h,construction:false});
+const sk=items=>({dpi:300,items});
+const adjacent=sk([line('a',0,0,10,0),line('b',10,0,10,0),line('c',20,0,0,10),line('d',20,10,-10,0),line('e',10,10,-10,0),line('f',0,10,0,-10),line('g',10,0,0,10)]);
+test('adjacent regions union removes shared edge and preserves area',()=>{const r=detectTopologyRegions(adjacent);const u=previewProfileUnion(adjacent,r);assert.equal(u.ok,true);assert.equal(u.area,200);assert.equal(u.sharedEdges,1);assert.equal(u.rings.length,1);assert.equal(u.rings[0].itemIds.includes('g'),false);});
+test('single region cannot be united',()=>{const r=detectTopologyRegions(adjacent);assert.equal(previewProfileUnion(adjacent,[r[0]]).ok,false);});
+test('disconnected regions are rejected',()=>{const items=[...adjacent.items,line('h',40,0,10,0),line('i',50,0,0,10),line('j',50,10,-10,0),line('k',40,10,0,-10)];const s=sk(items);const r=detectTopologyRegions(s);assert.equal(previewProfileUnion(s,[r[0],r[2]]).ok,false);});

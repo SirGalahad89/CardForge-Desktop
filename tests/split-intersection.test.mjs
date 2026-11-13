@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {splitAtIntersection}=require('../test-build/sketch-split-intersection.cjs');
+const {detectSketchIntersections}=require('../test-build/sketch-intersections.cjs');
+const line=(id,x,y,w,h)=>({id,kind:'line',x,y,w,h,construction:false});
+let seq=0;const id=()=>`new-${++seq}`;
+const run=(sk)=>splitAtIntersection(sk,detectSketchIntersections(sk)[0],id);
+test('cross: four segments share one node',()=>{const sk={dpi:300,items:[line('a',0,0,10,10),line('b',0,10,10,-10)]};const r=run(sk);assert.equal(r.ok,true);assert.equal(r.sketch.items.length,4);assert.equal(r.sketch.nodes[0].members.length,4);assert.equal(r.sketch.nodes[0].x,5);assert.equal(sk.items.length,2);});
+test('T: split only interior line, share three endpoints',()=>{const r=run({dpi:300,items:[line('a',0,0,10,0),line('b',5,0,0,10)]});assert.equal(r.ok,true);assert.equal(r.sketch.items.length,3);assert.equal(r.sketch.nodes[0].members.length,3);});
+test('reject dimensioned line without modifying sketch',()=>{const sk={dpi:300,items:[line('a',0,0,10,10),line('b',0,10,10,-10)],dimensions:[{id:'d',itemId:'a',kind:'length',valueMM:10}]};assert.equal(run(sk).ok,false);assert.equal(sk.items.length,2);});
+test('reject overlapping segments',()=>{const sk={dpi:300,items:[line('a',0,0,10,0),line('b',5,0,10,0)]};assert.equal(run(sk).ok,false);});
+test('preserve node on original far endpoint',()=>{const sk={dpi:300,items:[line('a',0,0,10,10),line('b',0,10,10,-10)],nodes:[{id:'old',x:10,y:10,members:[{itemId:'a',end:1}]}]};const r=run(sk);assert.equal(r.ok,true);const member=r.sketch.nodes.find(n=>n.id==='old').members[0];assert.notEqual(member.itemId,'a');assert.equal(member.end,1);});
