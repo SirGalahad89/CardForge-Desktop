@@ -18,7 +18,8 @@ export function applyDrivingDimension(sketch:Sketch,itemId:string,valueMM:number
  const existing=(sketch.dimensions||[]).find(d=>d.itemId===itemId&&d.kind===kind);
  const dimensions:DrivingDimension[]=[...(sketch.dimensions||[]).filter(d=>d.id!==existing?.id),{id:existing?.id||'dim-'+itemId+'-'+kind,itemId,kind,valueMM}];
  const candidate={...sketch,items:sketch.items.map(i=>i.id===itemId?updated:i),dimensions};
- const issues=inspectSketch(candidate);
+ const previousIssues=new Set(inspectSketch(sketch));
+ const issues=inspectSketch(candidate).filter(issue=>!previousIssues.has(issue));
  if(issues.length)return {ok:false,reason:issues[0]};
  const solved=solveSketch(candidate);
  if(!solved.converged)return {ok:false,reason:solved.reason||'Constraint-Solver konnte das Maß nicht anwenden'};
